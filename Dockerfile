@@ -13,20 +13,12 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libzip-dev \
     zip \
-    && docker-php-ext-install pdo pdo_mysql mbstring zip
+    && docker-php-ext-install pdo pdo_mysql mbstring zip \
+    && a2enmod rewrite
 
-# Enable Apache rewrite for Laravel routes
-RUN a2enmod rewrite
-
-# Set DocumentRoot to Laravel public folder with proper access
-RUN echo '<VirtualHost *:80>
-    DocumentRoot /var/www/html/public
-    <Directory /var/www/html/public>
-        Options Indexes FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+# Copy custom Apache config for Laravel
+# Create docker/000-default.conf in your project with proper <VirtualHost> settings
+COPY docker/000-default.conf /etc/apache2/sites-available/000-default.conf
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -38,15 +30,15 @@ COPY . .
 RUN composer install --no-dev --optimize-autoloader
 
 # Set permissions for storage, cache, and public folder
-RUN chown -R www-data:www-data storage bootstrap/cache public
-RUN chmod -R 755 public
+RUN chown -R www-data:www-data storage bootstrap/cache public \
+    && chmod -R 755 public storage bootstrap/cache
 
 # Clear Laravel caches
 RUN php artisan config:clear && \
     php artisan route:clear && \
     php artisan view:clear
 
-# Run migrations automatically (force for production)
+# Optional: Run migrations automatically (skip errors)
 RUN php artisan migrate --force || true
 
 # Expose port 80
