@@ -16,7 +16,10 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install pdo pdo_mysql mbstring zip \
     && a2enmod rewrite
 
-# Copy custom Apache config for Laravel
+# Set global ServerName to suppress AH00558 warning
+RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
+
+# Copy custom Apache config for Laravel (optional if needed)
 # Create docker/000-default.conf in your project with proper <VirtualHost> settings
 COPY docker/000-default.conf /etc/apache2/sites-available/000-default.conf
 
@@ -31,12 +34,12 @@ RUN composer install --no-dev --optimize-autoloader
 
 # Set permissions for storage, cache, and public folder
 RUN chown -R www-data:www-data storage bootstrap/cache public \
-    && chmod -R 755 public storage bootstrap/cache
+    && chmod -R 755 storage bootstrap/cache public
 
 # Clear Laravel caches
-RUN php artisan config:clear && \
-    php artisan route:clear && \
-    php artisan view:clear
+RUN php artisan config:clear \
+    && php artisan route:clear \
+    && php artisan view:clear
 
 # Optional: Run migrations automatically (skip errors)
 RUN php artisan migrate --force || true
