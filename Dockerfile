@@ -18,6 +18,16 @@ RUN apt-get update && apt-get install -y \
 # Enable Apache rewrite for Laravel routes
 RUN a2enmod rewrite
 
+# Set DocumentRoot to Laravel public folder with proper access
+RUN echo '<VirtualHost *:80>
+    DocumentRoot /var/www/html/public
+    <Directory /var/www/html/public>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -27,8 +37,9 @@ COPY . .
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Set permissions for storage and cache
-RUN chown -R www-data:www-data storage bootstrap/cache
+# Set permissions for storage, cache, and public folder
+RUN chown -R www-data:www-data storage bootstrap/cache public
+RUN chmod -R 755 public
 
 # Clear Laravel caches
 RUN php artisan config:clear && \
